@@ -25,5 +25,3 @@ let transitions = {
         'b': 'q3'
     }
 }
-
-automaton = new AFD(alphabet, 'q0', F, transitions);

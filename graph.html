@@ -55,10 +55,16 @@
     </div>
 
 <script src="./AFD.js"></script>
-<script src="./afdInit.js"></script>
+<script src="./AFN.js"></script>
+<!--<script src="./afdInit.js"></script>-->
+<script src="./afnInit.js"></script>
 <script type="text/javascript">
     const COLOR_DEFAULT = '#46961b';
     const SELECTED_COLOR = '#f4a742';
+
+    // Initialize desired automaton (AFD or AFN)
+    //let automaton = new AFD(alphabet, 'q0', F, transitions);
+    let automaton = new AFN(alphabet, 'q0', F, transitions);
 
     let automatonTransitions = automaton.getTransitions();
     const finalStates = automaton.getF();
@@ -102,6 +108,45 @@
                 edges.add(edgeAux[i]);
             }
         });
+    }else if (automaton instanceof AFN){
+        Object.keys(automatonTransitions).forEach((key) => {
+            let node = {};
+            node.id = key;
+            node.label = key;
+            node.color = {background: COLOR_DEFAULT, border: '#000000'};
+            node.borderWidth = (finalStates.has(key))? 4: 0;
+            nodes.add(node);
+            // Add edges
+            edgeAux = [];
+            Object.keys(automatonTransitions[key]).forEach(symbol=>{
+                // Chec sets inside each symbol
+                for (let toState of automatonTransitions[key][symbol]){
+                    // Check if 'to' is already on the edge array
+                    let repeated = false;
+                    for (var i = 0; i < edgeAux.length; i++) {
+                        if (edgeAux[i].to === toState){
+                            // Found repeated destination
+                            repeated = true;
+                            // Change label of previous node
+                            edgeAux[i].label = edgeAux[i].label + ", " + (symbol === '')?'ε':symbol;
+                        }
+                    }
+                    if(!repeated) {
+                        let edge = {};
+                        edge.from = key;
+                        edge.to = toState;
+                        edge.label = (symbol === '')?'ε':symbol;
+                        edge.arrows = 'to';
+                        edge.color = {color: '#777777'};
+                        edgeAux.push(edge);
+                    }
+                }
+            });
+            // Add edges of current node
+            for(var i = 0; i < edgeAux.length; i++){
+                edges.add(edgeAux[i]);
+            }
+        });
     }
     
     // create a network
@@ -119,6 +164,7 @@
         }
     };
 
+
     // initialize your network!
     var network = new vis.Network(container, data, options);
 
@@ -127,24 +173,46 @@
         const n = backtrack.length;
         backtrack.forEach((state, i) => {
             promise = promise.then(() => {
-                    // Unselect previous colored state in backtrack if exists
-                    if (i >= 1) {
+                // Unselect previous colored state in backtrack if exists
+                if (i >= 1) {
+                    if (automaton instanceof AFD){
                         nodes._data[backtrack[i-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
-                    }
-                    nodes._data[state].color = SELECTED_COLOR;
-                    network = new vis.Network(container, data, options);
-                    return new Promise((resolve) => {
-                        if (i < n){
-                            setTimeout(resolve, speed);
-                        }else{
-                            resolve();
+                    }else if (automaton instanceof AFN){
+                        // backtrack is a set of states and we need to unpaint all of them
+                        for (const s of backtrack[i-1]) {
+                            nodes._data[s].color = {background: COLOR_DEFAULT, border: '#000000'};
                         }
-                    });
+                    }
+                }
+                if (automaton instanceof AFD) {
+                    nodes._data[state].color = SELECTED_COLOR;
+                }else if (automaton instanceof AFN) {
+                    // state is a set of states and we need to paint all of them
+                    for (const s of state) {
+                        nodes._data[s].color = SELECTED_COLOR;
+                    }
+                }
+                
+                network = new vis.Network(container, data, options);
+                return new Promise((resolve) => {
+                    if (i < n){
+                        setTimeout(resolve, speed);
+                    }else{
+                        resolve();
+                    }
+                });
             });
         });
 
         promise.then(() => {
-            nodes._data[backtrack[backtrack.length-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+            if (automaton instanceof AFD){
+                nodes._data[backtrack[backtrack.length-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+            }else if (automaton instanceof AFN){
+                // backtrack is a set of states and we need to unpaint all of them
+                for (const s of backtrack[backtrack.length-1]) {
+                    nodes._data[s].color = {background: COLOR_DEFAULT, border: '#000000'};
+                }
+            }
             network = new vis.Network(container, data, options);
             callback();
         });
@@ -157,6 +225,7 @@
         const speed = speedRange.value*10;
         const valid = automaton.accepts(word);
         const backtrack = automaton.getVisitedNodes();
+        
         if (backtrack.length == 0){
             return;
         }

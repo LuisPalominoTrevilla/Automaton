@@ -9,7 +9,11 @@ class AFN{
     }
 
     getTransitions(){
-        return JSON.parse(JSON.stringify(this.transitions));
+        return transitions;
+    }
+
+    getF(){
+        return this.F;
     }
 
     getVisitedNodes(){
@@ -94,5 +98,3 @@ class AFN{
         return;
     }
 }
-
-module.exports = AFN;
