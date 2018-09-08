@@ -17,13 +17,10 @@ class AFD{
         for (var char of word){
             if (!this.alphabet.has(char)) return false;
         }
-        let states = new Set();
-        states.add(this.q0);
-        this.transitionFunc(states, word);
-        for (var state of states){
-            if (this.F.has(state)) { 
-                return true;
-            }
+        let q = this.q0;
+        q = this.transitionFunc(q, word);
+        if (this.F.has(q)) { 
+            return true;
         }
         return false;
     }
@@ -31,21 +28,14 @@ class AFD{
     transitionFunc(q, word){
         // Base case
         if (word.length === 0){
-            return;
+            return q;
         }
         let w = word.slice(0, -1);
         let o = word.slice(-1);
-        // Recursively fill the states
-        this.transitionFunc(q, w);
-        // Set the states
-        let newStates = new Set();
-        for (var state of q){
-            newStates.add(this.transitions[state][o]);
-        }
-        q.clear();
-        for(var state of newStates){
-            q.add(state);
-        }
+        // Get the state that will result from w
+        q = this.transitionFunc(q, w);
+        q = this.transitions[q][o];
+        return q
     }
 }
 
