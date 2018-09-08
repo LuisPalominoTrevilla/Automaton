@@ -5,14 +5,21 @@ class AFN{
         this.q0 = q0;
         this.F = F;
         this.transitions = transitionTable;
+        this.backtrack = [];
     }
 
     getTransitions(){
         return JSON.parse(JSON.stringify(this.transitions));
     }
 
+    getVisitedNodes(){
+        return this.backtrack;
+    }
+
     // Returns true if automata accepts the word
     accepts(word){
+        // Reset the backtrack
+        this.backtrack = [];
         // Verify that every symbol belongs to the alphabet
         for (var char of word){
             if (!this.alphabet.has(char)) return false;
@@ -20,6 +27,7 @@ class AFN{
         let A = new Set();
         // Add initial state to set
         A.add(this.q0);
+        this.backtrack.push(new Set(A));
         // Call deltaTestate on the word
         this._deltaTestate(A, word);
         for (var state of A){
@@ -44,6 +52,7 @@ class AFN{
                     }
                 }
             }
+            this.backtrack.push(new Set(A));
             return;
         }
         let w = word.slice(0, -1);
@@ -81,6 +90,8 @@ class AFN{
                 }
             }
         }
+        this.backtrack.push(new Set(q));
+        return;
     }
 }
 
