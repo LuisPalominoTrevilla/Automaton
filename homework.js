@@ -29,4 +29,5 @@ let transitions = {
 }
 
 afd = new AFD(alphabet, 'q0', F, transitions);
-console.log(afd.accepts('bbaababa'));
+console.log(afd.accepts('bab'));
+console.log(afd.getVisitedNodes());

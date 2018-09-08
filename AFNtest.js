@@ -60,7 +60,7 @@ F.add('q3');
         'b': new Set().add('q1').add('q0')
     }
 } */
-let transitions = {
+/* let transitions = {
     q0: {
         'a': new Set().add('q0'),
         'b': new Set(),
@@ -84,6 +84,31 @@ let transitions = {
         'b': new Set(),
         'c': new Set()
     }
+} */
+
+let transitions = {
+    q0: {
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        '': new Set().add('q1').add('q2')
+    },
+    q1: {
+        'a': new Set().add('q1'),
+        'b': new Set(),
+        'c': new Set().add('q3')
+    },
+    q2: {
+        'a': new Set(),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q3')
+    },
+    q3: {
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set()
+    }
 }
+
 afn = new AFN(alphabet, 'q0', F, transitions);
-console.log(afn.accepts(''));
+console.log(afn.accepts('aaccb'));

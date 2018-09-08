@@ -5,14 +5,21 @@ class AFD{
         this.q0 = q0;
         this.F = F;
         this.transitions = transitionTable;
+        this.backtrack = [];
     }
 
     getTransitions(){
         return JSON.parse(JSON.stringify(this.transitions));
     }
 
+    getVisitedNodes(){
+        return this.backtrack;
+    }
+
     // Returns true if automata accepts the word
     accepts(word){
+        // restart the backtrack queue
+        this.backtrack = [];
         // Verify that every symbol belongs to the alphabet
         for (var char of word){
             if (!this.alphabet.has(char)) return false;
@@ -28,6 +35,7 @@ class AFD{
     transitionFunc(q, word){
         // Base case
         if (word.length === 0){
+            this.backtrack.push(q);
             return q;
         }
         let w = word.slice(0, -1);
@@ -35,6 +43,7 @@ class AFD{
         // Get the state that will result from w
         q = this.transitionFunc(q, w);
         q = this.transitions[q][o];
+        this.backtrack.push(q);
         return q
     }
 }
