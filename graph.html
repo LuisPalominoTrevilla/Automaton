@@ -1,35 +1,109 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript" src="./vis/vis.js"></script>
     <link href="=./vis/vis.css" rel="stylesheet" type="text/css" />
-
+    <link href="./bootstrap.min.css" rel="stylesheet" type="text/css"/>
     <style type="text/css">
         #mynetwork {
-            width: 1200px;
-            height: 1200px;
+            width: 100%;
+            height: 100%;
             border: 1px solid lightgray;
+        }
+        #result{
+            width: 100%;
+            min-height: 400px;
+        }
+        .correct{
+            background-image: url('./checkmark.png');
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .incorrect{
+            background-image: url('./cross.png');
+            background-repeat: no-repeat;
+            background-position: center;
         }
     </style>
 </head>
 <body>
-<div id="mynetwork"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div id="mynetwork"></div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="text-center">
+                    <h1 class="title">Autómata</h1>
+                    <form>
+                        <div class="form-group">
+                            <label for="wordInput">Cadena</label>
+                            <input type="text" class="form-control" id="wordInput" placeholder="Introduce una cadena w">
+                        </div>
+                        <div class="form-group">
+                            <label for="speedRange">Cambiar velocidad</label>
+                            <input type="range" class="form-control-range" value="90" id="speedRange">
+                        </div>
+                        <button type="submit" id="checkWordBtn" class="btn btn-primary">Checar si M acepta w</button>
+                    </form>
+                    <div class="" id="result">
 
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="./AFD.js"></script>
+<script src="./afdInit.js"></script>
 <script type="text/javascript">
-    // create an array with nodes
-    var nodes = new vis.DataSet([
-        {id: 0, label: 'q0', color: '#46961b'},
-        {id: 1, label: 'q1', color: {background: '#46961b', border: '#000000'}, borderWidth: 4},
-        {id: 2, label: 'q2', color: '#46961b'},
-    ]);
+    const COLOR_DEFAULT = '#46961b';
+    const SELECTED_COLOR = '#f4a742';
 
-    // create an array with edges
-    var edges = new vis.DataSet([
-        {from: 0, to: 0, label: 'a', arrows: 'to', color: {color: '#777777'}},
-        {from: 0, to: 1, label: 'b', arrows: 'to', color: {color: '#777777'}},
-        {from: 1, to: 2, label: 'b, a', arrows: 'to', color: {color: '#777777'}},
-        {from: 2, to: 2, label: 'b, a', arrows: 'to', color: {color: '#777777'}}
-    ]);
+    let automatonTransitions = automaton.getTransitions();
+    const finalStates = automaton.getF();
 
+    let nodes = new vis.DataSet([]);
+    let edges = new vis.DataSet([]);
+
+    if (automaton instanceof AFD){
+        Object.keys(automatonTransitions).forEach((key) => {
+            let node = {};
+            node.id = key;
+            node.label = key;
+            node.color = {background: COLOR_DEFAULT, border: '#000000'};
+            node.borderWidth = (finalStates.has(key))? 4: 0;
+            nodes.add(node);
+            // Add edges
+            edgeAux = [];
+            Object.keys(automatonTransitions[key]).forEach(symbol=>{
+                // Check if 'to' is already on the edge array
+                let repeated = false;
+                for (var i = 0; i < edgeAux.length; i++) {
+                    if (edgeAux[i].to === automatonTransitions[key][symbol]){
+                        // Found repeated destination
+                        repeated = true;
+                        // Change label of previous node
+                        edgeAux[i].label = edgeAux[i].label + ", " + symbol;
+                    }
+                }
+                if(!repeated) {
+                    let edge = {};
+                    edge.from = key;
+                    edge.to = automatonTransitions[key][symbol];
+                    edge.label = symbol;
+                    edge.arrows = 'to';
+                    edge.color = {color: '#777777'};
+                    edgeAux.push(edge);
+                }
+            });
+            // Add edges of current node
+            for(var i = 0; i < edgeAux.length; i++){
+                edges.add(edgeAux[i]);
+            }
+        });
+    }
+    
     // create a network
     var container = document.getElementById('mynetwork');
 
@@ -47,10 +121,52 @@
 
     // initialize your network!
     var network = new vis.Network(container, data, options);
-    document.querySelector("#mynetwork").addEventListener('click', () => {
-        nodes._data[0].color = '#000000'
-        var network = new vis.Network(container, data, options);
-        console.log(network.body.data);
+
+    const startAnimation = (backtrack, speed, callback) => {
+        var promise = Promise.resolve();
+        const n = backtrack.length;
+        backtrack.forEach((state, i) => {
+            promise = promise.then(() => {
+                    // Unselect previous colored state in backtrack if exists
+                    if (i >= 1) {
+                        nodes._data[backtrack[i-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+                    }
+                    nodes._data[state].color = SELECTED_COLOR;
+                    network = new vis.Network(container, data, options);
+                    return new Promise((resolve) => {
+                        if (i < n){
+                            setTimeout(resolve, speed);
+                        }else{
+                            resolve();
+                        }
+                    });
+            });
+        });
+
+        promise.then(() => {
+            nodes._data[backtrack[backtrack.length-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+            network = new vis.Network(container, data, options);
+            callback();
+        });
+    }
+    available = true;
+    // Handle events
+    document.querySelector("#checkWordBtn").addEventListener('click', (e) => {
+        e.preventDefault();
+        let word = document.querySelector('#wordInput').value;
+        const speed = speedRange.value*10;
+        const valid = automaton.accepts(word);
+        const backtrack = automaton.getVisitedNodes();
+        if (backtrack.length == 0){
+            return;
+        }
+        if (available){
+            startAnimation(backtrack, speed, () => {
+                document.querySelector("#result").className = (valid)? 'correct':'incorrect';
+                available = true;
+            });
+        }
+        available = false;
     });
 </script>
 </body>

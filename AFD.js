@@ -12,6 +12,10 @@ class AFD{
         return JSON.parse(JSON.stringify(this.transitions));
     }
 
+    getF(){
+        return this.F;
+    }
+
     getVisitedNodes(){
         return this.backtrack;
     }
@@ -47,5 +51,3 @@ class AFD{
         return q
     }
 }
-
-module.exports = AFD;
