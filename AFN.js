@@ -31,7 +31,6 @@ class AFN{
         let A = new Set();
         // Add initial state to set
         A.add(this.q0);
-        this.backtrack.push(new Set(A));
         // Call deltaTestate on the word
         this._deltaTestate(A, word);
         for (var state of A){

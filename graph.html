@@ -61,9 +61,10 @@
 <script type="text/javascript">
     const COLOR_DEFAULT = '#46961b';
     const SELECTED_COLOR = '#f4a742';
+    const EDGE_COLOR = '#777777';
 
     // Initialize desired automaton (AFD or AFN)
-    //let automaton = new AFD(alphabet, 'q0', F, transitions);
+    //let automaton = new AFN(alphabet, 'q0', F, transitions);
     let automaton = new AFN(alphabet, 'q0', F, transitions);
 
     let automatonTransitions = automaton.getTransitions();
@@ -99,7 +100,7 @@
                     edge.to = automatonTransitions[key][symbol];
                     edge.label = symbol;
                     edge.arrows = 'to';
-                    edge.color = {color: '#777777'};
+                    edge.color = {color: EDGE_COLOR};
                     edgeAux.push(edge);
                 }
             });
@@ -137,7 +138,7 @@
                         edge.to = toState;
                         edge.label = (symbol === '')?'ε':symbol;
                         edge.arrows = 'to';
-                        edge.color = {color: '#777777'};
+                        edge.color = {color: EDGE_COLOR};
                         edgeAux.push(edge);
                     }
                 }
@@ -164,7 +165,6 @@
         }
     };
 
-
     // initialize your network!
     var network = new vis.Network(container, data, options);
 
@@ -176,19 +176,60 @@
                 // Unselect previous colored state in backtrack if exists
                 if (i >= 1) {
                     if (automaton instanceof AFD){
-                        nodes._data[backtrack[i-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+                        // repaint node
+                        const prev_node = backtrack[i-1];
+                        nodes._data[prev_node].color = {background: COLOR_DEFAULT, border: '#000000'};
+                        // repaint edge
+                        if (i >= 2){
+                            const prev_prev_node = backtrack[i-2];
+                            Object.keys(edges._data).forEach((edge) => {
+                                if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == prev_node) {
+                                    edges._data[edge].color = {color: EDGE_COLOR}
+                                }
+                            });
+                        }
                     }else if (automaton instanceof AFN){
                         // backtrack is a set of states and we need to unpaint all of them
                         for (const s of backtrack[i-1]) {
                             nodes._data[s].color = {background: COLOR_DEFAULT, border: '#000000'};
+                            // repaint edge
+                            if (i >= 2){
+                                const prev_prev = backtrack[i-2];
+                                for (var prev_prev_node of prev_prev){
+                                    Object.keys(edges._data).forEach((edge) => {
+                                        if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == s) {
+                                            edges._data[edge].color = {color: EDGE_COLOR}
+                                        }
+                                    });
+                                }
+                            }
                         }
                     }
                 }
                 if (automaton instanceof AFD) {
+                    
+                    if (i >= 1){
+                        const prev_node = backtrack[i-1];
+                        Object.keys(edges._data).forEach((edge) => {
+                            if (edges._data[edge].from == prev_node && edges._data[edge].to == state) {
+                                edges._data[edge].color = {color: SELECTED_COLOR}
+                            }
+                        });
+                    }
                     nodes._data[state].color = SELECTED_COLOR;
                 }else if (automaton instanceof AFN) {
                     // state is a set of states and we need to paint all of them
                     for (const s of state) {
+                        if (i >= 1){
+                            const prev = backtrack[i-1];
+                            for (var prev_node of prev) {
+                                Object.keys(edges._data).forEach((edge) => {
+                                    if (edges._data[edge].from == prev_node && edges._data[edge].to == s) {
+                                        edges._data[edge].color = {color: SELECTED_COLOR}
+                                    }
+                                });
+                            }
+                        }
                         nodes._data[s].color = SELECTED_COLOR;
                     }
                 }
@@ -206,17 +247,40 @@
 
         promise.then(() => {
             if (automaton instanceof AFD){
-                nodes._data[backtrack[backtrack.length-1]].color = {background: COLOR_DEFAULT, border: '#000000'};
+                const prev = backtrack[backtrack.length-1];
+                const prev_prev = backtrack[backtrack.length-2];
+                nodes._data[prev].color = {background: COLOR_DEFAULT, border: '#000000'};
+                // repaint edge
+                if (prev_prev){
+                    Object.keys(edges._data).forEach((edge) => {
+                        if (edges._data[edge].from == prev_prev && edges._data[edge].to == prev) {
+                            edges._data[edge].color = {color: EDGE_COLOR}
+                        }
+                    });
+                }
             }else if (automaton instanceof AFN){
                 // backtrack is a set of states and we need to unpaint all of them
-                for (const s of backtrack[backtrack.length-1]) {
+                const prev = backtrack[backtrack.length-1];
+                for (const s of prev) {
                     nodes._data[s].color = {background: COLOR_DEFAULT, border: '#000000'};
+                    const prev_prev = backtrack[backtrack.length-2];
+                    if (prev_prev){
+                        for (var prev_prev_node of prev_prev){
+                            Object.keys(edges._data).forEach((edge) => {
+                                if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == s) {
+                                    edges._data[edge].color = {color: EDGE_COLOR}
+                                }
+                            });
+                        }
+                    }
                 }
             }
             network = new vis.Network(container, data, options);
             callback();
         });
     }
+
+
     available = true;
     // Handle events
     document.querySelector("#checkWordBtn").addEventListener('click', (e) => {
@@ -225,8 +289,9 @@
         const speed = speedRange.value*10;
         const valid = automaton.accepts(word);
         const backtrack = automaton.getVisitedNodes();
-        
         if (backtrack.length == 0){
+            // The word didn't have valid symbols
+            document.querySelector("#result").className = (valid)? 'correct':'incorrect';
             return;
         }
         if (available){
