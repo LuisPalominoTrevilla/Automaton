@@ -33,6 +33,17 @@ class AFN{
     _deltaTestate(A, word){
         // Base case
         if (word.length === 0){
+            // See if p can be accessed from q e A through an epsilon transition
+            for (var q of A) {
+                let P = this.transitions[q][''];
+                if (P) {
+                    // There exists an epsilon transition from q and it reaches p:
+                    for (var p of P){
+                        // Add to set reachable states p
+                        A.add(p);
+                    }
+                }
+            }
             return;
         }
         let w = word.slice(0, -1);
@@ -57,6 +68,18 @@ class AFN{
         q.clear();
         for(var state of newStates){
             q.add(state);
+        }
+
+        // See if p can be accessed from qs through an epsilon transition
+        for (var qs of q) {
+            let P = this.transitions[qs][''];
+            if (P) {
+                // There exists an epsilon transition from qs and it reaches p:
+                for (var p of P){
+                    // Add to q reachable states p
+                    q.add(p);
+                }
+            }
         }
     }
 }
