@@ -40,9 +40,13 @@
                             <label for="wordInput">Cadena</label>
                             <input type="text" class="form-control" id="wordInput" placeholder="Introduce una cadena w">
                         </div>
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="fastCheck">
+                            <label class="form-check-label" for="fastCheck">Obtener resultado instantáneo</label>
+                        </div>
                         <div class="form-group">
                             <label for="speedRange">Cambiar velocidad</label>
-                            <input type="range" class="form-control-range" value="90" id="speedRange">
+                            <input type="range" class="form-control-range" value="100" min="50" id="speedRange">
                         </div>
                         <button type="submit" id="checkWordBtn" class="btn btn-primary">Checar si M acepta w</button>
                     </form>
@@ -302,8 +306,9 @@
         const speed = speedRange.value*10;
         const valid = automaton.accepts(word);
         const backtrack = automaton.getVisitedNodes();
-        if (backtrack.length == 0){
-            // The word didn't have valid symbols
+        const now = document.querySelector('#fastCheck').checked;
+        if (backtrack.length == 0 || now){
+            // The word didn't have valid symbols or user wants result right away
             document.querySelector("#result").className = (valid)? 'correct':'incorrect';
             return;
         }
