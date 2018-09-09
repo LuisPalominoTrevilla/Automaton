@@ -46,7 +46,7 @@
                         </div>
                         <div class="form-group">
                             <label for="speedRange">Cambiar velocidad</label>
-                            <input type="range" class="form-control-range" value="100" min="50" id="speedRange">
+                            <input type="range" class="form-control-range" value="70" min="30" id="speedRange">
                         </div>
                         <button type="submit" id="checkWordBtn" class="btn btn-primary">Checar si M acepta w</button>
                     </form>
@@ -62,14 +62,15 @@
 <script src="./AFN.js"></script>
 <!--<script src="./afdInit.js"></script>-->
 <script src="./valid_identifier_conf.js"></script>
+<!-- <script src="./afdInit.js"></script> -->
 <script type="text/javascript">
     const COLOR_DEFAULT = '#46961b';
     const SELECTED_COLOR = '#f4a742';
     const EDGE_COLOR = '#777777';
 
     // Initialize desired automaton (AFD or AFN)
-    //let automaton = new AFN(alphabet, 'q0', F, transitions);
     let automaton = new AFN(alphabet, 'q0', F, transitions);
+    //let automaton = new AFD(alphabet, 'q0', F, transitions);
 
     let automatonTransitions = automaton.getTransitions();
     const finalStates = automaton.getF();
@@ -84,7 +85,7 @@
             node.shape = 'circle';
             node.label = key;
             node.color = {background: COLOR_DEFAULT, border: '#000000'};
-            node.borderWidth = (finalStates.has(key))? 4: 0;
+            node.borderWidth = (finalStates.has(key))? 3: 0;
             nodes.add(node);
             // Add edges
             edgeAux = [];
@@ -121,7 +122,7 @@
             node.shape = 'circle';
             node.label = key;
             node.color = {background: COLOR_DEFAULT, border: '#000000'};
-            node.borderWidth = (finalStates.has(key))? 4: 0;
+            node.borderWidth = (finalStates.has(key))? 3: 0;
             nodes.add(node);
             // Add edges
             edgeAux = [];
@@ -184,6 +185,7 @@
     // initialize your network!
     var network = new vis.Network(container, data, options);
     
+    // Graph animation function
     const startAnimation = (backtrack, speed, callback) => {
         var promise = Promise.resolve();
         const n = backtrack.length;
@@ -194,13 +196,19 @@
                     if (automaton instanceof AFD){
                         // repaint node
                         const prev_node = backtrack[i-1];
-                        nodes._data[prev_node].color = {background: COLOR_DEFAULT, border: '#000000'};
+                        nodes.update({
+                            id: prev_node,
+                            color: {background: COLOR_DEFAULT, border: '#000000'}
+                        });
                         // repaint edge
                         if (i >= 2){
                             const prev_prev_node = backtrack[i-2];
                             Object.keys(edges._data).forEach((edge) => {
                                 if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == prev_node) {
-                                    edges._data[edge].color = {color: EDGE_COLOR}
+                                    edges.update({
+                                        id: edge,
+                                        color: {color: EDGE_COLOR}
+                                    });
                                 }
                             });
                         }
@@ -234,11 +242,17 @@
                         const prev_node = backtrack[i-1];
                         Object.keys(edges._data).forEach((edge) => {
                             if (edges._data[edge].from == prev_node && edges._data[edge].to == state) {
-                                edges._data[edge].color = {color: SELECTED_COLOR}
+                                edges.update({
+                                    id: edge,
+                                    color: {color: SELECTED_COLOR}
+                                });
                             }
                         });
                     }
-                    nodes._data[state].color = SELECTED_COLOR;
+                    nodes.update({
+                        id: state,
+                        color: SELECTED_COLOR
+                    });
                 }else if (automaton instanceof AFN) {
                     // state is a set of states and we need to paint all of them
                     for (const s of state) {
@@ -276,12 +290,18 @@
             if (automaton instanceof AFD){
                 const prev = backtrack[backtrack.length-1];
                 const prev_prev = backtrack[backtrack.length-2];
-                nodes._data[prev].color = {background: COLOR_DEFAULT, border: '#000000'};
+                nodes.update({
+                    id: prev,
+                    color: {background: COLOR_DEFAULT, border: '#000000'}
+                });
                 // repaint edge
                 if (prev_prev){
                     Object.keys(edges._data).forEach((edge) => {
                         if (edges._data[edge].from == prev_prev && edges._data[edge].to == prev) {
-                            edges._data[edge].color = {color: EDGE_COLOR}
+                            edges.update({
+                                id: edge,
+                                color: {color: EDGE_COLOR}
+                            });
                         }
                     });
                 }
