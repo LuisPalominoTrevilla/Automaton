@@ -57,7 +57,7 @@
 <script src="./AFD.js"></script>
 <script src="./AFN.js"></script>
 <!--<script src="./afdInit.js"></script>-->
-<script src="./afnInit.js"></script>
+<script src="./valid_identifier_conf.js"></script>
 <script type="text/javascript">
     const COLOR_DEFAULT = '#46961b';
     const SELECTED_COLOR = '#f4a742';
@@ -77,6 +77,7 @@
         Object.keys(automatonTransitions).forEach((key) => {
             let node = {};
             node.id = key;
+            node.shape = 'circle';
             node.label = key;
             node.color = {background: COLOR_DEFAULT, border: '#000000'};
             node.borderWidth = (finalStates.has(key))? 4: 0;
@@ -113,6 +114,7 @@
         Object.keys(automatonTransitions).forEach((key) => {
             let node = {};
             node.id = key;
+            node.shape = 'circle';
             node.label = key;
             node.color = {background: COLOR_DEFAULT, border: '#000000'};
             node.borderWidth = (finalStates.has(key))? 4: 0;
@@ -128,8 +130,18 @@
                         if (edgeAux[i].to === toState){
                             // Found repeated destination
                             repeated = true;
-                            // Change label of previous node
-                            edgeAux[i].label = edgeAux[i].label + ", " + (symbol === '')?'ε':symbol;
+                            // Change label of previous node only if length is less than 3
+                            let letters = edgeAux[i].label.split(', ');
+                            if (letters.length < 2){
+                                edgeAux[i].label = edgeAux[i].label + ", " + ((symbol === '')?'ε':symbol);
+                            }else{
+                                edgeAux[i].label = "";
+                                for (var letter = 0; letter < letters.length-1; letter++){
+                                    edgeAux[i].label += letters[letter] + ", ";
+                                }
+                                edgeAux[i].label += '..' + symbol;
+                                
+                            }
                         }
                     }
                     if(!repeated) {
@@ -160,14 +172,14 @@
     };
     var options = {
         layout: {
-            randomSeed: 1,
+            randomSeed: 548308,
             improvedLayout: true
         }
     };
 
     // initialize your network!
     var network = new vis.Network(container, data, options);
-
+    
     const startAnimation = (backtrack, speed, callback) => {
         var promise = Promise.resolve();
         const n = backtrack.length;
@@ -285,6 +297,7 @@
     // Handle events
     document.querySelector("#checkWordBtn").addEventListener('click', (e) => {
         e.preventDefault();
+        document.querySelector("#result").className = "";
         let word = document.querySelector('#wordInput').value;
         const speed = speedRange.value*10;
         const valid = automaton.accepts(word);
