@@ -9,7 +9,7 @@ class AFN{
     }
 
     getTransitions(){
-        return transitions;
+        return this.transitions;
     }
 
     getF(){

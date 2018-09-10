@@ -1,22 +1,22 @@
 // Define Alphabet
 const ALPHANUMERIC = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const NUMERIC = '0123456789';
-const alphabet = new Set();
-alphabet.add('');   // Palabra vacía
-alphabet.add('_');  // Underscore
+const alphabet_1 = new Set();
+alphabet_1.add('');   // Palabra vacía
+alphabet_1.add('_');  // Underscore
 for (var a of ALPHANUMERIC){
-    alphabet.add(a);
+    alphabet_1.add(a);
 }
 for (var a of NUMERIC){
-    alphabet.add(a);
+    alphabet_1.add(a);
 }
 // Define Final states set
-const F = new Set();
-F.add('q2').add('q3').add('q4').add('q6').add('q7').add('q8').add('q9').add('q10').add('q11').add('q12').add('q13')
+const F_1 = new Set();
+F_1.add('q2').add('q3').add('q4').add('q6').add('q7').add('q8').add('q9').add('q10').add('q11').add('q12').add('q13')
 .add('q14').add('q15').add('q16').add('q17').add('q18').add('q19').add('q20').add('q21').add('q22');
 
 // Define transitions table
-let transitions = {
+let transitions_1 = {
     q0: {
         '_': new Set().add('q1'),
         '0': new Set(),

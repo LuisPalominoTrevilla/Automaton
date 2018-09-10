@@ -12,17 +12,22 @@
         }
         #result{
             width: 100%;
-            min-height: 400px;
+            min-height: 300px;
+            font-size: 40px;
         }
         .correct{
-            background-image: url('./checkmark.png');
-            background-repeat: no-repeat;
-            background-position: center;
+            color: rgb(14, 110, 6);
         }
         .incorrect{
-            background-image: url('./cross.png');
-            background-repeat: no-repeat;
-            background-position: center;
+            color: rgb(146, 0, 0);
+        }
+        #symbol{
+            font-size: 40px;
+            font-weight: bold;
+            color: rgb(148, 11, 11);
+        }
+        #checkWordBtn{
+            margin-bottom: 3rem;
         }
     </style>
 </head>
@@ -49,9 +54,20 @@
                             <input type="range" class="form-control-range" value="70" min="30" id="speedRange">
                         </div>
                         <button type="submit" id="checkWordBtn" class="btn btn-primary">Checar si M acepta w</button>
+                        <div class="custom-control custom-radio">
+                            <input type="radio" id="identifier_radio" checked name="customRadio" class="custom-control-input">
+                            <label class="custom-control-label" for="identifier_radio">Autómata para validar identificadores</label>
+                        </div>
+                        <div class="custom-control custom-radio">
+                            <input type="radio" id="numeric_radio" name="customRadio" class="custom-control-input">
+                            <label class="custom-control-label" for="numeric_radio">Autómata para reconocer números</label>
+                        </div>
                     </form>
+                    <div class="current-word">
+                        <h4>Símbolo actual: <span id="symbol"></span></h4>
+                    </div>
                     <div class="" id="result">
-
+                        <h3></h3>
                     </div>
                 </div>
             </div>
@@ -60,137 +76,168 @@
 
 <script src="./AFD.js"></script>
 <script src="./AFN.js"></script>
-<!--<script src="./afdInit.js"></script>-->
 <script src="./valid_identifier_conf.js"></script>
-<!-- <script src="./afdInit.js"></script> -->
+<script src="./number_recognition_conf.js"></script>
+
 <script type="text/javascript">
     const COLOR_DEFAULT = '#46961b';
     const SELECTED_COLOR = '#f4a742';
     const EDGE_COLOR = '#777777';
+    const AUDIO = new Audio('./beep.mp3');
+    const MODES = ['NORMAL', 'IDENTIFIER', 'NUMBER'];
+    
+    let curr_mode;
+    let automaton;
+    let automatonTransitions;
+    let finalStates;
+    let nodes;
+    let edges;
+    let network;
 
-    // Initialize desired automaton (AFD or AFN)
-    let automaton = new AFN(alphabet, 'q0', F, transitions);
-    //let automaton = new AFD(alphabet, 'q0', F, transitions);
+    // create a network
+    var container = document.getElementById('mynetwork');
 
-    let automatonTransitions = automaton.getTransitions();
-    const finalStates = automaton.getF();
+    // Function used to initialized automaton
+    const initialize_automaton = (mode, alphabet, q, F, transitions) => {
+        automaton = new AFN(alphabet, q, F, transitions);
+        automatonTransitions = automaton.getTransitions();
+        finalStates = automaton.getF();
 
-    let nodes = new vis.DataSet([]);
-    let edges = new vis.DataSet([]);
+        nodes = new vis.DataSet([]);
+        edges = new vis.DataSet([]);
 
-    if (automaton instanceof AFD){
-        Object.keys(automatonTransitions).forEach((key) => {
-            let node = {};
-            node.id = key;
-            node.shape = 'circle';
-            node.label = key;
-            node.color = {background: COLOR_DEFAULT, border: '#000000'};
-            node.borderWidth = (finalStates.has(key))? 3: 0;
-            nodes.add(node);
-            // Add edges
-            edgeAux = [];
-            Object.keys(automatonTransitions[key]).forEach(symbol=>{
-                // Check if 'to' is already on the edge array
-                let repeated = false;
-                for (var i = 0; i < edgeAux.length; i++) {
-                    if (edgeAux[i].to === automatonTransitions[key][symbol]){
-                        // Found repeated destination
-                        repeated = true;
-                        // Change label of previous node
-                        edgeAux[i].label = edgeAux[i].label + ", " + symbol;
-                    }
-                }
-                if(!repeated) {
-                    let edge = {};
-                    edge.from = key;
-                    edge.to = automatonTransitions[key][symbol];
-                    edge.label = symbol;
-                    edge.arrows = 'to';
-                    edge.color = {color: EDGE_COLOR};
-                    edgeAux.push(edge);
-                }
-            });
-            // Add edges of current node
-            for(var i = 0; i < edgeAux.length; i++){
-                edges.add(edgeAux[i]);
-            }
-        });
-    }else if (automaton instanceof AFN){
-        Object.keys(automatonTransitions).forEach((key) => {
-            let node = {};
-            node.id = key;
-            node.shape = 'circle';
-            node.label = key;
-            node.color = {background: COLOR_DEFAULT, border: '#000000'};
-            node.borderWidth = (finalStates.has(key))? 3: 0;
-            nodes.add(node);
-            // Add edges
-            edgeAux = [];
-            Object.keys(automatonTransitions[key]).forEach(symbol=>{
-                // Chec sets inside each symbol
-                for (let toState of automatonTransitions[key][symbol]){
+        curr_mode = MODES[mode];
+
+        switch(curr_mode){
+            case MODES[0]:
+                document.querySelector('.title').innerHTML = "Autómata";
+                break;
+            case MODES[1]:
+                document.querySelector('.title').innerHTML = "Validación de Identificador";
+                break;
+            case MODES[2]:
+                document.querySelector('.title').innerHTML = "Reconocimiento Numérico";
+                break;
+        }
+
+        if (automaton instanceof AFD){
+            Object.keys(automatonTransitions).forEach((key) => {
+                let node = {};
+                node.id = key;
+                node.shape = 'circle';
+                node.label = key;
+                node.color = {background: COLOR_DEFAULT, border: '#000000'};
+                node.borderWidth = (finalStates.has(key))? 3: 0;
+                nodes.add(node);
+                // Add edges
+                edgeAux = [];
+                Object.keys(automatonTransitions[key]).forEach(symbol=>{
                     // Check if 'to' is already on the edge array
                     let repeated = false;
                     for (var i = 0; i < edgeAux.length; i++) {
-                        if (edgeAux[i].to === toState){
+                        if (edgeAux[i].to === automatonTransitions[key][symbol]){
                             // Found repeated destination
                             repeated = true;
-                            // Change label of previous node only if length is less than 3
-                            let letters = edgeAux[i].label.split(', ');
-                            if (letters.length < 2){
-                                edgeAux[i].label = edgeAux[i].label + ", " + ((symbol === '')?'ε':symbol);
-                            }else{
-                                edgeAux[i].label = "";
-                                for (var letter = 0; letter < letters.length-1; letter++){
-                                    edgeAux[i].label += letters[letter] + ", ";
-                                }
-                                edgeAux[i].label += '..' + symbol;
-                                
-                            }
+                            // Change label of previous node
+                            edgeAux[i].label = edgeAux[i].label + ", " + symbol;
                         }
                     }
                     if(!repeated) {
                         let edge = {};
                         edge.from = key;
-                        edge.to = toState;
-                        edge.label = (symbol === '')?'ε':symbol;
+                        edge.to = automatonTransitions[key][symbol];
+                        edge.label = symbol;
                         edge.arrows = 'to';
                         edge.color = {color: EDGE_COLOR};
                         edgeAux.push(edge);
                     }
+                });
+                // Add edges of current node
+                for(var i = 0; i < edgeAux.length; i++){
+                    edges.add(edgeAux[i]);
                 }
             });
-            // Add edges of current node
-            for(var i = 0; i < edgeAux.length; i++){
-                edges.add(edgeAux[i]);
-            }
-        });
-    }
-    
-    // create a network
-    var container = document.getElementById('mynetwork');
-
-    // provide the data in the vis format
-    var data = {
-        nodes: nodes,
-        edges: edges
-    };
-    var options = {
-        layout: {
-            randomSeed: 548308,
-            improvedLayout: true
+        }else if (automaton instanceof AFN){
+            Object.keys(automatonTransitions).forEach((key) => {
+                let node = {};
+                node.id = key;
+                node.shape = 'circle';
+                node.label = key;
+                node.color = {background: COLOR_DEFAULT, border: '#000000'};
+                node.borderWidth = (finalStates.has(key))? 3: 0;
+                nodes.add(node);
+                // Add edges
+                edgeAux = [];
+                Object.keys(automatonTransitions[key]).forEach(symbol=>{
+                    // Chec sets inside each symbol
+                    for (let toState of automatonTransitions[key][symbol]){
+                        // Check if 'to' is already on the edge array
+                        let repeated = false;
+                        for (var i = 0; i < edgeAux.length; i++) {
+                            if (edgeAux[i].to === toState){
+                                // Found repeated destination
+                                repeated = true;
+                                // Change label of previous node only if length is less than 3
+                                let letters = edgeAux[i].label.split(', ');
+                                if (letters.length < 2){
+                                    edgeAux[i].label = edgeAux[i].label + ", " + ((symbol === '')?'ε':symbol);
+                                }else{
+                                    edgeAux[i].label = "";
+                                    for (var letter = 0; letter < letters.length-1; letter++){
+                                        edgeAux[i].label += letters[letter] + ", ";
+                                    }
+                                    edgeAux[i].label += '..' + symbol;
+                                    
+                                }
+                            }
+                        }
+                        if(!repeated) {
+                            let edge = {};
+                            edge.from = key;
+                            edge.to = toState;
+                            edge.label = (symbol === '')?'ε':symbol;
+                            edge.arrows = 'to';
+                            edge.color = {color: EDGE_COLOR};
+                            edgeAux.push(edge);
+                        }
+                    }
+                });
+                // Add edges of current node
+                for(var i = 0; i < edgeAux.length; i++){
+                    edges.add(edgeAux[i]);
+                }
+            });
         }
-    };
 
-    // initialize your network!
-    var network = new vis.Network(container, data, options);
+        // provide the data in the vis format
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            layout: {
+                randomSeed: 548308,
+                improvedLayout: true
+            }
+        };
+
+        // initialize your network!
+        network = new vis.Network(container, data, options);
+    }
+
+    // Initialize automaton and graph with values from the vali_identifier_config
+    initialize_automaton(1, alphabet_1, 'q0', F_1, transitions_1);
     
     // Graph animation function
-    const startAnimation = (backtrack, speed, callback) => {
+    const startAnimation = (backtrack, speed, word, callback) => {
         var promise = Promise.resolve();
         const n = backtrack.length;
         backtrack.forEach((state, i) => {
             promise = promise.then(() => {
+                if (i >= 1) {
+                    document.querySelector('#symbol').innerHTML = word.charAt(0);
+                    word = word.slice(1);
+                }
                 // Unselect previous colored state in backtrack if exists
                 if (i >= 1) {
                     if (automaton instanceof AFD){
@@ -277,6 +324,7 @@
                 }
                 
                 return new Promise((resolve) => {
+                    AUDIO.play();
                     if (i < n){
                         setTimeout(resolve, speed);
                     }else{
@@ -287,6 +335,7 @@
         });
 
         promise.then(() => {
+            document.querySelector('#symbol').innerHTML = "";
             if (automaton instanceof AFD){
                 const prev = backtrack[backtrack.length-1];
                 const prev_prev = backtrack[backtrack.length-2];
@@ -338,6 +387,7 @@
     document.querySelector("#checkWordBtn").addEventListener('click', (e) => {
         e.preventDefault();
         document.querySelector("#result").className = "";
+        document.querySelector("#result h3").innerHTML = "";
         let word = document.querySelector('#wordInput').value;
         const speed = speedRange.value*10;
         const valid = automaton.accepts(word);
@@ -346,15 +396,53 @@
         if (backtrack.length == 0 || now){
             // The word didn't have valid symbols or user wants result right away
             document.querySelector("#result").className = (valid)? 'correct':'incorrect';
+            switch (curr_mode){
+                case MODES[0]:
+                    document.querySelector("#result h3").innerHTML = (valid)? "El autómata acepta la cadena":"El autómata rechaza la cadena";
+                    break;
+                case MODES[1]:
+                    document.querySelector("#result h3").innerHTML = (valid)? "El identificador proporcionado es válido":"EL identificador proporcionado no es válido";
+                    break;
+                case MODES[2]:
+                    document.querySelector("#result h3").innerHTML = (valid)? "El número es":"El número es";
+                    break;
+            }
             return;
         }
         if (available){
-            startAnimation(backtrack, speed, () => {
+            startAnimation(backtrack, speed, word, () => {
                 document.querySelector("#result").className = (valid)? 'correct':'incorrect';
+                switch (curr_mode){
+                    case MODES[0]:
+                        document.querySelector("#result h3").innerHTML = (valid)? "El autómata acepta la cadena":"El autómata rechaza la cadena";
+                        break;
+                    case MODES[1]:
+                        document.querySelector("#result h3").innerHTML = (valid)? "El identificador proporcionado es válido":"EL identificador proporcionado no es válido";
+                        break;
+                    case MODES[2]:
+                        document.querySelector("#result h3").innerHTML = (valid)? "El número es":"El número es";
+                        break;
+                }
                 available = true;
             });
         }
         available = false;
+    });
+
+    // Change to number recognition automaton
+    document.querySelector('#numeric_radio').addEventListener('click', ()=>{
+        if (curr_mode != 'NUMBER') {
+            // Change current mode
+            initialize_automaton(2, alphabet_2, 'q0', F_2, transitions_2);
+        }
+    });
+
+    // Change to valid identifier automaton
+    document.querySelector('#identifier_radio').addEventListener('click', ()=>{
+        if (curr_mode != 'IDENTIFIER') {
+            // Change current mode
+            initialize_automaton(1, alphabet_1, 'q0', F_1, transitions_1);
+        }
     });
 </script>
 </body>
