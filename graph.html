@@ -401,7 +401,7 @@
         const backtrack = automaton.getVisitedNodes();
         const now = document.querySelector('#fastCheck').checked;
         let numberType;
-        if (curr_mode == MODES[2]){
+        if (curr_mode == MODES[2] && backtrack.length !== 0){
             if (endStates.has('q1') || endStates.has('q2')){
                 numberType = "Natural";
             }else if (endStates.has('q3')){
@@ -424,7 +424,7 @@
                     document.querySelector("#result h3").innerHTML = (valid)? "El identificador proporcionado es válido":"EL identificador proporcionado no es válido";
                     break;
                 case MODES[2]:
-                document.querySelector("#result h3").innerHTML = (valid)? ("El número es un número " + numberType):"La cadena provista no es un número válido";
+                document.querySelector("#result h3").innerHTML = (valid)? ("El número es un número " + numberType):"ERROR: La cadena proporcionada no es un número válido";
                     break;
             }
             return;
