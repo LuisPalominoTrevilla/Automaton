@@ -1,13 +1,13 @@
 // Define Alphabet
-const alphabet = new Set();
-alphabet.add('');
-alphabet.add('a');
-alphabet.add('b');
+const alphabet_1 = new Set();
+alphabet_1.add('');
+alphabet_1.add('a');
+alphabet_1.add('b');
 // Define Final states set
-const F = new Set();
-F.add('q1').add('q2');
+const F_1 = new Set();
+F_1.add('q1').add('q2');
 // Define transitions table
-let transitions = {
+let transitions_1 = {
     q0: {
         'a': 'q1',
         'b': 'q2'

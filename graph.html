@@ -98,8 +98,8 @@
     var container = document.getElementById('mynetwork');
 
     // Function used to initialized automaton
-    const initialize_automaton = (mode, alphabet, q, F, transitions) => {
-        automaton = new AFN(alphabet, q, F, transitions);
+    const initialize_automaton = (isAFN, mode, alphabet, q, F, transitions) => {
+        automaton = (isAFN)? new AFN(alphabet, q, F, transitions):new AFD(alphabet, q, F, transitions);
         automatonTransitions = automaton.getTransitions();
         finalStates = automaton.getF();
 
@@ -226,7 +226,7 @@
     }
 
     // Initialize automaton and graph with values from the vali_identifier_config
-    initialize_automaton(1, alphabet_1, 'q0', F_1, transitions_1);
+    initialize_automaton(true, 1, alphabet_1, 'q0', F_1, transitions_1);
     
     // Graph animation function
     const startAnimation = (backtrack, speed, word, callback) => {
@@ -433,7 +433,7 @@
     document.querySelector('#numeric_radio').addEventListener('click', ()=>{
         if (curr_mode != 'NUMBER') {
             // Change current mode
-            initialize_automaton(2, alphabet_2, 'q0', F_2, transitions_2);
+            initialize_automaton(true, 2, alphabet_2, 'q0', F_2, transitions_2);
         }
     });
 
@@ -441,7 +441,7 @@
     document.querySelector('#identifier_radio').addEventListener('click', ()=>{
         if (curr_mode != 'IDENTIFIER') {
             // Change current mode
-            initialize_automaton(1, alphabet_1, 'q0', F_1, transitions_1);
+            initialize_automaton(true, 1, alphabet_1, 'q0', F_1, transitions_1);
         }
     });
 </script>
