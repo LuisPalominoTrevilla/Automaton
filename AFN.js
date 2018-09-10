@@ -24,6 +24,8 @@ class AFN{
     accepts(word){
         // Reset the backtrack
         this.backtrack = [];
+        // Keep track of every state
+        let endStates = [];
         // Verify that every symbol belongs to the alphabet
         for (var char of word){
             if (!this.alphabet.has(char)) return false;
@@ -33,12 +35,15 @@ class AFN{
         A.add(this.q0);
         // Call deltaTestate on the word
         this._deltaTestate(A, word);
+        endStates.push(A);
         for (var state of A){
-            if (this.F.has(state)) { 
-                return true;
+            if (this.F.has(state)) {
+                endStates.push(true);
+                return endStates;
             }
         }
-        return false;
+        endStates.push(false);
+        return endStates;
     }
 
     _deltaTestate(A, word){

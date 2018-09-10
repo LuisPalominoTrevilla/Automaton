@@ -390,9 +390,29 @@
         document.querySelector("#result h3").innerHTML = "";
         let word = document.querySelector('#wordInput').value;
         const speed = speedRange.value*10;
-        const valid = automaton.accepts(word);
+        const results = automaton.accepts(word);
+        let endStates, valid;
+        if (automaton instanceof AFN){
+            endStates = results[0];
+            valid = results[1];
+        }else{
+            valid = results;
+        }
         const backtrack = automaton.getVisitedNodes();
         const now = document.querySelector('#fastCheck').checked;
+        let numberType;
+        if (curr_mode == MODES[2]){
+            if (endStates.has('q1') || endStates.has('q2')){
+                numberType = "Natural";
+            }else if (endStates.has('q3')){
+                numberType = "Octal";
+            }else if (endStates.has('q5')){
+                numberType = "Hexadecimal";
+            }else if (endStates.has('q8') || endStates.has('q10')){
+                numberType = "Punto Flotante";
+            }
+        }
+
         if (backtrack.length == 0 || now){
             // The word didn't have valid symbols or user wants result right away
             document.querySelector("#result").className = (valid)? 'correct':'incorrect';
@@ -404,7 +424,7 @@
                     document.querySelector("#result h3").innerHTML = (valid)? "El identificador proporcionado es válido":"EL identificador proporcionado no es válido";
                     break;
                 case MODES[2]:
-                    document.querySelector("#result h3").innerHTML = (valid)? "El número es":"El número es";
+                document.querySelector("#result h3").innerHTML = (valid)? ("El número es un número " + numberType):"La cadena provista no es un número válido";
                     break;
             }
             return;
@@ -420,7 +440,7 @@
                         document.querySelector("#result h3").innerHTML = (valid)? "El identificador proporcionado es válido":"EL identificador proporcionado no es válido";
                         break;
                     case MODES[2]:
-                        document.querySelector("#result h3").innerHTML = (valid)? "El número es":"El número es";
+                        document.querySelector("#result h3").innerHTML = (valid)? ("El número es un número " + numberType):"El número introducido no pertenece a hexadecimal ni natural ni octal ni real";
                         break;
                 }
                 available = true;
