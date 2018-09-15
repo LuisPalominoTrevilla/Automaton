@@ -14,7 +14,6 @@ for (var num of NUMBERS){
 for(var letter of CHARACTERS){
     alphabet_2.add(letter);
 }
-console.log(alphabet_2);
 // Define Final states set
 const F_2 = new Set();
 F_2.add('q1');
