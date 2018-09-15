@@ -1,0 +1,2508 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript" src="./vis/vis.js"></script>
+    <link href="=./vis/vis.css" rel="stylesheet" type="text/css" />
+    <link href="./bootstrap.min.css" rel="stylesheet" type="text/css"/>
+    <style type="text/css">
+        #mynetwork {
+            width: 100%;
+            height: 100%;
+            border: 1px solid lightgray;
+        }
+        #result{
+            width: 100%;
+            min-height: 300px;
+            font-size: 40px;
+        }
+        .correct{
+            color: rgb(14, 110, 6);
+        }
+        .incorrect{
+            color: rgb(146, 0, 0);
+        }
+        #symbol{
+            font-size: 40px;
+            font-weight: bold;
+            color: rgb(148, 11, 11);
+        }
+        #checkWordBtn{
+            margin-bottom: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div id="mynetwork"></div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="text-center">
+                    <h1 class="title">Autómata</h1>
+                    <form>
+                        <div class="form-group">
+                            <label for="wordInput">Cadena</label>
+                            <input type="text" class="form-control" id="wordInput" placeholder="Introduce una cadena w">
+                        </div>
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="fastCheck">
+                            <label class="form-check-label" for="fastCheck">Obtener resultado instantáneo</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="speedRange">Cambiar velocidad</label>
+                            <input type="range" class="form-control-range" value="70" min="30" id="speedRange">
+                        </div>
+                        <button type="submit" id="checkWordBtn" class="btn btn-primary">Checar si M acepta w</button>
+                    </form>
+                    <div class="current-word">
+                        <h4>Símbolo actual: <span id="symbol"></span></h4>
+                    </div>
+                    <div class="" id="result">
+                        <h3></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    class AFD{
+
+constructor(alphabet, q0, F, transitionTable){
+    this.alphabet = alphabet;
+    this.q0 = q0;
+    this.F = F;
+    this.transitions = transitionTable;
+    this.backtrack = [];
+}
+
+getTransitions(){
+    return JSON.parse(JSON.stringify(this.transitions));
+}
+
+getF(){
+    return this.F;
+}
+
+getVisitedNodes(){
+    return this.backtrack;
+}
+
+// Returns true if automata accepts the word
+accepts(word){
+    // restart the backtrack queue
+    this.backtrack = [];
+    // Verify that every symbol belongs to the alphabet
+    for (var char of word){
+        if (!this.alphabet.has(char)) return false;
+    }
+    let q = this.q0;
+    q = this.transitionFunc(q, word);
+    if (this.F.has(q)) { 
+        return true;
+    }
+    return false;
+}
+
+transitionFunc(q, word){
+    // Base case
+    if (word.length === 0){
+        this.backtrack.push(q);
+        return q;
+    }
+    let w = word.slice(0, -1);
+    let o = word.slice(-1);
+    // Get the state that will result from w
+    q = this.transitionFunc(q, w);
+    q = this.transitions[q][o];
+    this.backtrack.push(q);
+    return q
+}
+}
+</script>
+<script>
+    class AFN{
+
+constructor(alphabet, q0, F, transitionTable){
+    this.alphabet = alphabet;
+    this.q0 = q0;
+    this.F = F;
+    this.transitions = transitionTable;
+    this.backtrack = [];
+}
+
+getTransitions(){
+    return this.transitions;
+}
+
+getF(){
+    return this.F;
+}
+
+getVisitedNodes(){
+    return this.backtrack;
+}
+
+// Returns true if automata accepts the word
+accepts(word){
+    // Reset the backtrack
+    this.backtrack = [];
+    // Keep track of every state
+    let endStates = [];
+    // Verify that every symbol belongs to the alphabet
+    for (var char of word){
+        if (!this.alphabet.has(char)) return false;
+    }
+    let A = new Set();
+    // Add initial state to set
+    A.add(this.q0);
+    // Call deltaTestate on the word
+    this._deltaTestate(A, word);
+    endStates.push(A);
+    for (var state of A){
+        if (this.F.has(state)) {
+            endStates.push(true);
+            return endStates;
+        }
+    }
+    endStates.push(false);
+    return endStates;
+}
+
+_deltaTestate(A, word){
+    // Base case
+    if (word.length === 0){
+        // See if p can be accessed from q e A through an epsilon transition
+        for (var q of A) {
+            let P = this.transitions[q][''];
+            if (P) {
+                // There exists an epsilon transition from q and it reaches p:
+                for (var p of P){
+                    // Add to set reachable states p
+                    A.add(p);
+                }
+            }
+        }
+        this.backtrack.push(new Set(A));
+        return;
+    }
+    let w = word.slice(0, -1);
+    let a = word.slice(-1);
+    // Recursively fill the states
+    this._deltaTestate(A, w);
+    this._delta(A, a);
+    
+    return;
+}
+
+_delta(q, a){
+    if (a.length !== 1){
+        return;
+    }
+    // Set the states
+    let newStates = new Set();
+    for (var state of q){
+        // Union operator
+        newStates = new Set([...this.transitions[state][a], ...newStates]);
+    }
+    q.clear();
+    for(var state of newStates){
+        q.add(state);
+    }
+
+    // See if p can be accessed from qs through an epsilon transition
+    for (var qs of q) {
+        let P = this.transitions[qs][''];
+        if (P) {
+            // There exists an epsilon transition from qs and it reaches p:
+            for (var p of P){
+                // Add to q reachable states p
+                q.add(p);
+            }
+        }
+    }
+    this.backtrack.push(new Set(q));
+    return;
+}
+}
+</script>
+<script>
+    // Define Alphabet
+const ALPHANUMERIC = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const NUMERIC = '0123456789';
+const alphabet_1 = new Set();
+alphabet_1.add('');   // Palabra vacía
+alphabet_1.add('_');  // Underscore
+for (var a of ALPHANUMERIC){
+    alphabet_1.add(a);
+}
+for (var a of NUMERIC){
+    alphabet_1.add(a);
+}
+// Define Final states set
+const F_1 = new Set();
+F_1.add('q2').add('q3').add('q4').add('q6').add('q7').add('q8').add('q9').add('q10').add('q11').add('q12').add('q13')
+.add('q14').add('q15').add('q16').add('q17').add('q18').add('q19').add('q20').add('q21').add('q22');
+
+// Define transitions table
+let transitions_1 = {
+    q0: {
+        '_': new Set().add('q1'),
+        '0': new Set(),
+        '1': new Set(),
+        '2': new Set(),
+        '3': new Set(),
+        '4': new Set(),
+        '5': new Set(),
+        '6': new Set(),
+        '7': new Set(),
+        '8': new Set(),
+        '9': new Set(),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q11'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q7'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q6'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q17'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q15'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q3'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q1: {
+        '_': new Set().add('q1'),
+        '0': new Set().add('q1'),
+        '1': new Set().add('q1'),
+        '2': new Set().add('q1'),
+        '3': new Set().add('q1'),
+        '4': new Set().add('q1'),
+        '5': new Set().add('q1'),
+        '6': new Set().add('q1'),
+        '7': new Set().add('q1'),
+        '8': new Set().add('q1'),
+        '9': new Set().add('q1'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q2: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q3: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q4'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q4: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q5'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q5: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q6: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q5'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q7: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q9'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q8'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q8: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q5'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q9: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q10'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q10: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q5'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q11: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q12'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q12: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q13'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q13: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q14'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q14: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q5'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q15: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q16'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q16: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q14'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q17: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q18'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q18: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q19'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q19: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q20'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q20: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q21'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q21: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q22'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q2'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    },
+    q22: {
+        '_': new Set().add('q2'),
+        '0': new Set().add('q2'),
+        '1': new Set().add('q2'),
+        '2': new Set().add('q2'),
+        '3': new Set().add('q2'),
+        '4': new Set().add('q2'),
+        '5': new Set().add('q2'),
+        '6': new Set().add('q2'),
+        '7': new Set().add('q2'),
+        '8': new Set().add('q2'),
+        '9': new Set().add('q2'),
+        'a': new Set().add('q2'),
+        'b': new Set().add('q2'),
+        'c': new Set().add('q2'),
+        'd': new Set().add('q2'),
+        'e': new Set().add('q2'),
+        'f': new Set().add('q2'),
+        'g': new Set().add('q2'),
+        'h': new Set().add('q2'),
+        'i': new Set().add('q2'),
+        'j': new Set().add('q2'),
+        'k': new Set().add('q2'),
+        'l': new Set().add('q2'),
+        'm': new Set().add('q5'),
+        'n': new Set().add('q2'),
+        'o': new Set().add('q2'),
+        'p': new Set().add('q2'),
+        'q': new Set().add('q2'),
+        'r': new Set().add('q2'),
+        's': new Set().add('q2'),
+        't': new Set().add('q2'),
+        'u': new Set().add('q2'),
+        'v': new Set().add('q2'),
+        'w': new Set().add('q2'),
+        'x': new Set().add('q2'),
+        'y': new Set().add('q2'),
+        'z': new Set().add('q2'),
+        'A': new Set().add('q2'),
+        'B': new Set().add('q2'),
+        'C': new Set().add('q2'),
+        'D': new Set().add('q2'),
+        'E': new Set().add('q2'),
+        'F': new Set().add('q2'),
+        'G': new Set().add('q2'),
+        'H': new Set().add('q2'),
+        'I': new Set().add('q2'),
+        'J': new Set().add('q2'),
+        'K': new Set().add('q2'),
+        'L': new Set().add('q2'),
+        'M': new Set().add('q2'),
+        'N': new Set().add('q2'),
+        'O': new Set().add('q2'),
+        'P': new Set().add('q2'),
+        'Q': new Set().add('q2'),
+        'R': new Set().add('q2'),
+        'S': new Set().add('q2'),
+        'T': new Set().add('q2'),
+        'U': new Set().add('q2'),
+        'V': new Set().add('q2'),
+        'W': new Set().add('q2'),
+        'X': new Set().add('q2'),
+        'Y': new Set().add('q2'),
+        'Z': new Set().add('q2')
+    }
+}
+</script>
+<script>
+    // Define Alphabet
+const NUMBERS = "0123456789";
+const CHARACTERS = "ABCDEFabcdef";
+const alphabet_2 = new Set();
+alphabet_2.add('');
+alphabet_2.add('x');
+alphabet_2.add('X');
+alphabet_2.add('-');
+alphabet_2.add('+');
+alphabet_2.add('.');
+for (var num of NUMBERS){
+    alphabet_2.add(num);
+}
+for(var letter of CHARACTERS){
+    alphabet_2.add(letter);
+}
+// Define Final states set
+const F_2 = new Set();
+F_2.add('q1');
+F_2.add('q2');
+F_2.add('q3');
+F_2.add('q5');
+F_2.add('q8');
+F_2.add('q10');
+// Define transitions table
+let transitions_2 = {
+    q0: {
+        '0': new Set().add('q2'),
+        '1': new Set().add('q1'),
+        '2': new Set().add('q1'),
+        '3': new Set().add('q1'),
+        '4': new Set().add('q1'),
+        '5': new Set().add('q1'),
+        '6': new Set().add('q1'),
+        '7': new Set().add('q1'),
+        '8': new Set().add('q1'),
+        '9': new Set().add('q1'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q1: {
+        '0': new Set().add('q1'),
+        '1': new Set().add('q1'),
+        '2': new Set().add('q1'),
+        '3': new Set().add('q1'),
+        '4': new Set().add('q1'),
+        '5': new Set().add('q1'),
+        '6': new Set().add('q1'),
+        '7': new Set().add('q1'),
+        '8': new Set().add('q1'),
+        '9': new Set().add('q1'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set().add('q7')
+    },
+    q2: {
+        '0': new Set().add('q3').add('q6'),
+        '1': new Set().add('q3').add('q6'),
+        '2': new Set().add('q3').add('q6'),
+        '3': new Set().add('q3').add('q6'),
+        '4': new Set().add('q3').add('q6'),
+        '5': new Set().add('q3').add('q6'),
+        '6': new Set().add('q3').add('q6'),
+        '7': new Set().add('q3').add('q6'),
+        '8': new Set().add('q6'),
+        '9': new Set().add('q6'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set().add('q4'),
+        'X': new Set().add('q4'),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set().add('q7')
+    },
+    q3: {
+        '0': new Set().add('q3'),
+        '1': new Set().add('q3'),
+        '2': new Set().add('q3'),
+        '3': new Set().add('q3'),
+        '4': new Set().add('q3'),
+        '5': new Set().add('q3'),
+        '6': new Set().add('q3'),
+        '7': new Set().add('q3'),
+        '8': new Set(),
+        '9': new Set(),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q4: {
+        '0': new Set().add('q5'),
+        '1': new Set().add('q5'),
+        '2': new Set().add('q5'),
+        '3': new Set().add('q5'),
+        '4': new Set().add('q5'),
+        '5': new Set().add('q5'),
+        '6': new Set().add('q5'),
+        '7': new Set().add('q5'),
+        '8': new Set().add('q5'),
+        '9': new Set().add('q5'),
+        'a': new Set().add('q5'),
+        'b': new Set().add('q5'),
+        'c': new Set().add('q5'),
+        'd': new Set().add('q5'),
+        'e': new Set().add('q5'),
+        'f': new Set().add('q5'),
+        'A': new Set().add('q5'),
+        'B': new Set().add('q5'),
+        'C': new Set().add('q5'),
+        'D': new Set().add('q5'),
+        'E': new Set().add('q5'),
+        'F': new Set().add('q5'),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q5: {
+        '0': new Set().add('q5'),
+        '1': new Set().add('q5'),
+        '2': new Set().add('q5'),
+        '3': new Set().add('q5'),
+        '4': new Set().add('q5'),
+        '5': new Set().add('q5'),
+        '6': new Set().add('q5'),
+        '7': new Set().add('q5'),
+        '8': new Set().add('q5'),
+        '9': new Set().add('q5'),
+        'a': new Set().add('q5'),
+        'b': new Set().add('q5'),
+        'c': new Set().add('q5'),
+        'd': new Set().add('q5'),
+        'e': new Set().add('q5'),
+        'f': new Set().add('q5'),
+        'A': new Set().add('q5'),
+        'B': new Set().add('q5'),
+        'C': new Set().add('q5'),
+        'D': new Set().add('q5'),
+        'E': new Set().add('q5'),
+        'F': new Set().add('q5'),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q6: {
+        '0': new Set().add('q6'),
+        '1': new Set().add('q6'),
+        '2': new Set().add('q6'),
+        '3': new Set().add('q6'),
+        '4': new Set().add('q6'),
+        '5': new Set().add('q6'),
+        '6': new Set().add('q6'),
+        '7': new Set().add('q6'),
+        '8': new Set().add('q6'),
+        '9': new Set().add('q6'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set().add('q7')
+    },
+    q7: {
+        '0': new Set().add('q8'),
+        '1': new Set().add('q8'),
+        '2': new Set().add('q8'),
+        '3': new Set().add('q8'),
+        '4': new Set().add('q8'),
+        '5': new Set().add('q8'),
+        '6': new Set().add('q8'),
+        '7': new Set().add('q8'),
+        '8': new Set().add('q8'),
+        '9': new Set().add('q8'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q8: {
+        '0': new Set().add('q8'),
+        '1': new Set().add('q8'),
+        '2': new Set().add('q8'),
+        '3': new Set().add('q8'),
+        '4': new Set().add('q8'),
+        '5': new Set().add('q8'),
+        '6': new Set().add('q8'),
+        '7': new Set().add('q8'),
+        '8': new Set().add('q8'),
+        '9': new Set().add('q8'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set().add('q9'),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set().add('q9'),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q9: {
+        '0': new Set().add('q10'),
+        '1': new Set().add('q10'),
+        '2': new Set().add('q10'),
+        '3': new Set().add('q10'),
+        '4': new Set().add('q10'),
+        '5': new Set().add('q10'),
+        '6': new Set().add('q10'),
+        '7': new Set().add('q10'),
+        '8': new Set().add('q10'),
+        '9': new Set().add('q10'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        'e': new Set(),
+        'E': new Set(),
+        '+': new Set().add('q11'),
+        '-': new Set().add('q11'),
+        '.': new Set()
+    },
+    q10: {
+        '0': new Set().add('q10'),
+        '1': new Set().add('q10'),
+        '2': new Set().add('q10'),
+        '3': new Set().add('q10'),
+        '4': new Set().add('q10'),
+        '5': new Set().add('q10'),
+        '6': new Set().add('q10'),
+        '7': new Set().add('q10'),
+        '8': new Set().add('q10'),
+        '9': new Set().add('q10'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        'e': new Set(),
+        'E': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    },
+    q11: {
+        '0': new Set().add('q10'),
+        '1': new Set().add('q10'),
+        '2': new Set().add('q10'),
+        '3': new Set().add('q10'),
+        '4': new Set().add('q10'),
+        '5': new Set().add('q10'),
+        '6': new Set().add('q10'),
+        '7': new Set().add('q10'),
+        '8': new Set().add('q10'),
+        '9': new Set().add('q10'),
+        'a': new Set(),
+        'b': new Set(),
+        'c': new Set(),
+        'd': new Set(),
+        'e': new Set(),
+        'f': new Set(),
+        'A': new Set(),
+        'B': new Set(),
+        'C': new Set(),
+        'D': new Set(),
+        'E': new Set(),
+        'F': new Set(),
+        'x': new Set(),
+        'X': new Set(),
+        'e': new Set(),
+        'E': new Set(),
+        '+': new Set(),
+        '-': new Set(),
+        '.': new Set()
+    }
+}
+</script>
+
+<script type="text/javascript">
+    const COLOR_DEFAULT = '#46961b';
+    const SELECTED_COLOR = '#f4a742';
+    const EDGE_COLOR = '#777777';
+    const MODES = ['NORMAL', 'IDENTIFIER', 'NUMBER'];
+    document.querySelector('.title').innerHTML = "Práctica Lenguajes Regulares";
+    
+    let curr_mode;
+    let automaton;
+    let automatonTransitions;
+    let finalStates;
+    let nodes;
+    let edges;
+    let network;
+
+    // create a network
+    var container = document.getElementById('mynetwork');
+
+    // Function used to initialized automaton
+    const initialize_automaton = (isAFN, mode, alphabet, q, F, transitions) => {
+        automaton = (isAFN)? new AFN(alphabet, q, F, transitions):new AFD(alphabet, q, F, transitions);
+        automatonTransitions = automaton.getTransitions();
+        finalStates = automaton.getF();
+
+        nodes = new vis.DataSet([]);
+        edges = new vis.DataSet([]);
+
+        curr_mode = MODES[mode];
+
+        if (automaton instanceof AFD){
+            Object.keys(automatonTransitions).forEach((key) => {
+                let node = {};
+                node.id = key;
+                node.shape = 'circle';
+                node.label = key;
+                node.color = {background: COLOR_DEFAULT, border: '#000000'};
+                node.borderWidth = (finalStates.has(key))? 3: 0;
+                nodes.add(node);
+                // Add edges
+                edgeAux = [];
+                Object.keys(automatonTransitions[key]).forEach(symbol=>{
+                    // Check if 'to' is already on the edge array
+                    let repeated = false;
+                    for (var i = 0; i < edgeAux.length; i++) {
+                        if (edgeAux[i].to === automatonTransitions[key][symbol]){
+                            // Found repeated destination
+                            repeated = true;
+                            // Change label of previous node
+                            edgeAux[i].label = edgeAux[i].label + ", " + symbol;
+                        }
+                    }
+                    if(!repeated) {
+                        let edge = {};
+                        edge.from = key;
+                        edge.to = automatonTransitions[key][symbol];
+                        edge.label = symbol;
+                        edge.arrows = 'to';
+                        edge.color = {color: EDGE_COLOR};
+                        edgeAux.push(edge);
+                    }
+                });
+                // Add edges of current node
+                for(var i = 0; i < edgeAux.length; i++){
+                    edges.add(edgeAux[i]);
+                }
+            });
+        }else if (automaton instanceof AFN){
+            Object.keys(automatonTransitions).forEach((key) => {
+                let node = {};
+                node.id = key;
+                node.shape = 'circle';
+                node.label = key;
+                node.color = {background: COLOR_DEFAULT, border: '#000000'};
+                node.borderWidth = (finalStates.has(key))? 3: 0;
+                nodes.add(node);
+                // Add edges
+                edgeAux = [];
+                Object.keys(automatonTransitions[key]).forEach(symbol=>{
+                    // Chec sets inside each symbol
+                    for (let toState of automatonTransitions[key][symbol]){
+                        // Check if 'to' is already on the edge array
+                        let repeated = false;
+                        for (var i = 0; i < edgeAux.length; i++) {
+                            if (edgeAux[i].to === toState){
+                                // Found repeated destination
+                                repeated = true;
+                                // Change label of previous node only if length is less than 3
+                                let letters = edgeAux[i].label.split(', ');
+                                if (letters.length < 2){
+                                    edgeAux[i].label = edgeAux[i].label + ", " + ((symbol === '')?'ε':symbol);
+                                }else{
+                                    edgeAux[i].label = "";
+                                    for (var letter = 0; letter < letters.length-1; letter++){
+                                        edgeAux[i].label += letters[letter] + ", ";
+                                    }
+                                    edgeAux[i].label += '..' + symbol;
+                                    
+                                }
+                            }
+                        }
+                        if(!repeated) {
+                            let edge = {};
+                            edge.from = key;
+                            edge.to = toState;
+                            edge.label = (symbol === '')?'ε':symbol;
+                            edge.arrows = 'to';
+                            edge.color = {color: EDGE_COLOR};
+                            edgeAux.push(edge);
+                        }
+                    }
+                });
+                // Add edges of current node
+                for(var i = 0; i < edgeAux.length; i++){
+                    edges.add(edgeAux[i]);
+                }
+            });
+        }
+
+        // provide the data in the vis format
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            layout: {
+                randomSeed: 548308,
+                improvedLayout: true
+            }
+        };
+
+        // initialize your network!
+        network = new vis.Network(container, data, options);
+    }
+
+    // Initialize automaton and graph with values from the vali_identifier_config
+    initialize_automaton(true, 1, alphabet_1, 'q0', F_1, transitions_1);
+    
+    // Graph animation function
+    const startAnimation = (backtrack, speed, word, callback) => {
+        var promise = Promise.resolve();
+        const n = backtrack.length;
+        backtrack.forEach((state, i) => {
+            promise = promise.then(() => {
+                if (i >= 1) {
+                    document.querySelector('#symbol').innerHTML = word.charAt(0);
+                    word = word.slice(1);
+                }
+                // Unselect previous colored state in backtrack if exists
+                if (i >= 1) {
+                    if (automaton instanceof AFD){
+                        // repaint node
+                        const prev_node = backtrack[i-1];
+                        nodes.update({
+                            id: prev_node,
+                            color: {background: COLOR_DEFAULT, border: '#000000'}
+                        });
+                        // repaint edge
+                        if (i >= 2){
+                            const prev_prev_node = backtrack[i-2];
+                            Object.keys(edges._data).forEach((edge) => {
+                                if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == prev_node) {
+                                    edges.update({
+                                        id: edge,
+                                        color: {color: EDGE_COLOR}
+                                    });
+                                }
+                            });
+                        }
+                    }else if (automaton instanceof AFN){
+                        // backtrack is a set of states and we need to unpaint all of them
+                        for (const s of backtrack[i-1]) {
+                            nodes.update({
+                                id: s,
+                                color: {background: COLOR_DEFAULT, border: '#000000'}
+                            });
+                            // repaint edge
+                            if (i >= 2){
+                                const prev_prev = backtrack[i-2];
+                                for (var prev_prev_node of prev_prev){
+                                    Object.keys(edges._data).forEach((edge) => {
+                                        if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == s) {
+                                            edges.update({
+                                                id: edge,
+                                                color: {color: EDGE_COLOR}
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                if (automaton instanceof AFD) {
+                    
+                    if (i >= 1){
+                        const prev_node = backtrack[i-1];
+                        Object.keys(edges._data).forEach((edge) => {
+                            if (edges._data[edge].from == prev_node && edges._data[edge].to == state) {
+                                edges.update({
+                                    id: edge,
+                                    color: {color: SELECTED_COLOR}
+                                });
+                            }
+                        });
+                    }
+                    nodes.update({
+                        id: state,
+                        color: SELECTED_COLOR
+                    });
+                }else if (automaton instanceof AFN) {
+                    // state is a set of states and we need to paint all of them
+                    for (const s of state) {
+                        if (i >= 1){
+                            const prev = backtrack[i-1];
+                            for (var prev_node of prev) {
+                                Object.keys(edges._data).forEach((edge) => {
+                                    if (edges._data[edge].from == prev_node && edges._data[edge].to == s) {
+                                        edges.update({
+                                            id: edge,
+                                            color: {color: SELECTED_COLOR}
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                        nodes.update({
+                            id: s,
+                            color: SELECTED_COLOR
+                        });
+                    }
+                }
+                
+                return new Promise((resolve) => {
+                    if (i < n){
+                        setTimeout(resolve, speed);
+                    }else{
+                        resolve();
+                    }
+                });
+            });
+        });
+
+        promise.then(() => {
+            document.querySelector('#symbol').innerHTML = "";
+            if (automaton instanceof AFD){
+                const prev = backtrack[backtrack.length-1];
+                const prev_prev = backtrack[backtrack.length-2];
+                nodes.update({
+                    id: prev,
+                    color: {background: COLOR_DEFAULT, border: '#000000'}
+                });
+                // repaint edge
+                if (prev_prev){
+                    Object.keys(edges._data).forEach((edge) => {
+                        if (edges._data[edge].from == prev_prev && edges._data[edge].to == prev) {
+                            edges.update({
+                                id: edge,
+                                color: {color: EDGE_COLOR}
+                            });
+                        }
+                    });
+                }
+            }else if (automaton instanceof AFN){
+                // backtrack is a set of states and we need to unpaint all of them
+                const prev = backtrack[backtrack.length-1];
+                for (const s of prev) {
+                    nodes.update({
+                        id: s,
+                        color: {background: COLOR_DEFAULT, border: '#000000'}
+                    });
+                    const prev_prev = backtrack[backtrack.length-2];
+                    if (prev_prev){
+                        for (var prev_prev_node of prev_prev){
+                            Object.keys(edges._data).forEach((edge) => {
+                                if (edges._data[edge].from == prev_prev_node && edges._data[edge].to == s) {
+                                    edges.update({
+                                        id: edge,
+                                        color: {color: EDGE_COLOR}
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            callback();
+        });
+    }
+
+
+    available = true;
+    // Handle events
+    document.querySelector("#checkWordBtn").addEventListener('click', (e) => {
+        e.preventDefault();
+        // Initial state
+        if (curr_mode === MODES[2]){
+            // Start with the identifiers automaton
+            initialize_automaton(true, 1, alphabet_1, 'q0', F_1, transitions_1);
+        }
+        let results, endStates, valid, backtrack, numberType;
+        document.querySelector("#result").className = "";
+        document.querySelector("#result h3").innerHTML = "";
+        // Input values
+        let word = document.querySelector('#wordInput').value;
+        const speed = speedRange.value*10;
+        const now = document.querySelector('#fastCheck').checked;
+        // Get results
+        results = automaton.accepts(word);
+        if (automaton instanceof AFN){
+            endStates = results[0];
+            valid = results[1];
+        }else{
+            valid = results;
+        }
+        backtrack = automaton.getVisitedNodes();
+
+        if (backtrack.length === 0 || endStates.size == 0){
+            // String provided starts with a number
+            initialize_automaton(true, 2, alphabet_2, 'q0', F_2, transitions_2);
+            results = automaton.accepts(word);
+            if (automaton instanceof AFN){
+                endStates = results[0];
+                valid = results[1];
+            }else{
+                valid = results;
+            }
+            backtrack = automaton.getVisitedNodes();
+
+            if (curr_mode == MODES[2] && backtrack.length !== 0){
+                if (endStates.has('q1') || endStates.has('q2')){
+                    numberType = "Natural";
+                }else if (endStates.has('q3')){
+                    numberType = "Octal";
+                }else if (endStates.has('q5')){
+                    numberType = "Hexadecimal";
+                }else if (endStates.has('q8') || endStates.has('q10')){
+                    numberType = "Punto Flotante";
+                }
+            }
+        }
+
+        if (available && (backtrack.length == 0 || now)){
+            // The user wants result right away
+            document.querySelector("#result").className = (valid)? 'correct':'incorrect';
+            switch (curr_mode){
+                case MODES[0]:
+                    
+                    break;
+                case MODES[1]:
+                    document.querySelector("#result h3").innerHTML = (valid)? "El string proporcionado es un identificador válido":"ERROR! El string no se reconoce como un número o identificador válido";
+                    break;
+                case MODES[2]:
+                    document.querySelector("#result h3").innerHTML = (valid)? ("El string proporcionado es un número " + numberType):"ERROR! El string no se reconoce como un número o identificador válido";
+                    break;
+            }
+            return;
+        } else if (available){
+            available = false;
+            startAnimation(backtrack, speed, word, () => {
+                document.querySelector("#result").className = (valid)? 'correct':'incorrect';
+                switch (curr_mode){
+                    case MODES[0]:
+                        break;
+                    case MODES[1]:
+                    document.querySelector("#result h3").innerHTML = (valid)? "El string proporcionado es un identificador válido":"ERROR! El string no se reconoce como un número o identificador válido";
+                        break;
+                    case MODES[2]:
+                    document.querySelector("#result h3").innerHTML = (valid)? ("El string proporcionado es un número " + numberType):"ERROR! El string no se reconoce como un número o identificador válido";
+                        break;
+                }
+                available = true;
+            });
+        }
+    });
+
+</script>
+</body>
+</html>
